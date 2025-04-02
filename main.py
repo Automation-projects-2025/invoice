@@ -6,46 +6,26 @@ import pytesseract
 import tempfile
 import shutil
 import os
-import subprocess  # ✅ Needed for version check
-
-try:
-    from docx import Document
-    print("✅ [Startup] 'python-docx' loaded successfully.")
-except Exception as e:
-    print("❌ [Startup] Failed to load 'python-docx':", e)
 
 app = FastAPI()
 
-# ✅ Optional: Check if Tesseract is available
-@app.on_event("startup")
-async def check_tesseract_version():
-    try:
-        version = subprocess.check_output(["tesseract", "-v"]).decode()
-        print("🧠 Tesseract version:\n", version)
-    except Exception as e:
-        print("❌ Tesseract not available:", e)
-
-
-@app.get("/")
-def health_check():
-    return {"status": "OCR API is running 🚀"}
-
 @app.post("/extract-text/")
 async def extract_text(file: UploadFile = File(...)):
-    filename = file.filename.lower()
-    print(f"📄 Received file: {filename}")
+    filename = file.filename
+    print(f"📄 Received file: {filename}")  # Early logging of filename
 
+    # Save the file temporarily
     suffix = os.path.splitext(filename)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         shutil.copyfileobj(file.file, temp_file)
         temp_path = temp_file.name
 
-    print(f"📂 Temp file saved to: {temp_path}")
+    print(f"📂 Temp file saved to: {temp_path}")  # Path should be saved immediately after upload
 
-    result = {"text": ""}
+    result = {"text": "", "filename": filename}
 
     try:
-        if filename.endswith(".pdf"):
+        if filename.lower().endswith(".pdf"):
             print("🔍 Processing as PDF using OCR...")
             pages = convert_from_path(temp_path, dpi=300)
             extracted = ""
@@ -54,8 +34,9 @@ async def extract_text(file: UploadFile = File(...)):
                 extracted += f"\n--- Page {i+1} ---\n{text}"
             result["text"] = extracted
 
-        elif filename.endswith(".docx"):
+        elif filename.lower().endswith(".docx"):
             print("📘 Processing as DOCX using python-docx...")
+            from docx import Document
             doc = Document(temp_path)
             extracted = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
             result["text"] = extracted
