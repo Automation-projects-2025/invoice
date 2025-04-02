@@ -6,8 +6,8 @@ import pytesseract
 import tempfile
 import shutil
 import os
+import subprocess  # ✅ Needed for version check
 
-# Try docx import
 try:
     from docx import Document
     print("✅ [Startup] 'python-docx' loaded successfully.")
@@ -15,6 +15,16 @@ except Exception as e:
     print("❌ [Startup] Failed to load 'python-docx':", e)
 
 app = FastAPI()
+
+# ✅ Optional: Check if Tesseract is available
+@app.on_event("startup")
+async def check_tesseract_version():
+    try:
+        version = subprocess.check_output(["tesseract", "-v"]).decode()
+        print("🧠 Tesseract version:\n", version)
+    except Exception as e:
+        print("❌ Tesseract not available:", e)
+
 
 @app.get("/")
 def health_check():
